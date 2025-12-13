@@ -68,7 +68,11 @@ suspend fun fetchJob(jobId: String): ServerCheckResult = withContext(Dispatchers
 
 private suspend fun submitCheck(type: String, payload: Map<String, Any?>): ServerCheckResult {
     return withContext(Dispatchers.IO) {
-        val body = buildRequestBody(payload + mapOf("type" to type))
+        val body = buildRequestBody(
+            payload + mapOf(
+                "checkTypes" to listOf(type)
+            )
+        )
 
         val request = Request.Builder()
             .url(CHECKS_ENDPOINT)
