@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -361,16 +360,12 @@ private fun CheckScreenContainer(
 
 @Composable
 private fun ActionButton(loading: Boolean, label: String, action: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
+    Button(
+        onClick = action,
+        enabled = !loading,
+        modifier = Modifier.align(Alignment.End)
     ) {
-        Button(
-            onClick = action,
-            enabled = !loading
-        ) {
-            Text(label)
-        }
+        Text(label)
     }
 }
 
