@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -232,19 +231,7 @@ private fun TcpCheckScreen() {
         ActionButton(loading = loading, label = "Отправить на сервер") {
             scope.launch {
                 loading = true
-                val parsedPort = port.toIntOrNull()
-                if (parsedPort == null || parsedPort !in 1..65535) {
-                    result = ServerCheckResult(
-                        statusCode = null,
-                        jobId = null,
-                        body = null,
-                        error = "Введите корректный порт (1-65535)"
-                    )
-                    loading = false
-                    return@launch
-                }
-
-                result = runTcpCheck(host, parsedPort)
+                result = runTcpCheck(host, port.toIntOrNull() ?: 0)
                 loading = false
             }
         }
@@ -373,16 +360,12 @@ private fun CheckScreenContainer(
 
 @Composable
 private fun ActionButton(loading: Boolean, label: String, action: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
+    Button(
+        onClick = action,
+        enabled = !loading,
+        modifier = Modifier.align(Alignment.End)
     ) {
-        Button(
-            onClick = action,
-            enabled = !loading
-        ) {
-            Text(label)
-        }
+        Text(label)
     }
 }
 
