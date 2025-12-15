@@ -262,8 +262,8 @@ private fun ResultCard(
 
 @Composable
 private fun MetricsSection(metricGroups: List<MetricGroup>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Метрики", style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Результаты метрик", style = MaterialTheme.typography.titleMedium)
 
         metricGroups.forEachIndexed { index, group ->
             MetricGroupCard(group = group, index = index)
@@ -300,17 +300,29 @@ private fun MetricGroupCard(group: MetricGroup, index: Int) {
 private fun HttpResultSection(metrics: HttpMetrics) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("HTTP/HTTPS результат", style = MaterialTheme.typography.titleMedium)
-        LabeledRow("Локация агента", metrics.location)
-        LabeledRow("Страна", metrics.country)
-        LabeledRow("IP", metrics.ip)
-        metrics.statusCode?.let { LabeledRow("HTTP статус", it.toString()) }
-        metrics.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
-        metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
-            Text("Заголовки", style = MaterialTheme.typography.labelLarge)
-            HeaderList(headers)
-        }
-        metrics.result?.let { result ->
-            ResultBadge(result)
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 2.dp,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LabeledRow("Локация агента", metrics.location)
+                LabeledRow("Страна", metrics.country)
+                LabeledRow("IP", metrics.ip)
+                metrics.statusCode?.let { LabeledRow("HTTP статус", it.toString()) }
+                metrics.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
+                metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
+                    Text("Заголовки", style = MaterialTheme.typography.labelLarge)
+                    HeaderList(headers)
+                }
+                metrics.result?.let { result ->
+                    ResultBadge(result)
+                }
+            }
         }
     }
 }
