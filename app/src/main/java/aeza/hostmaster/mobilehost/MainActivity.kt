@@ -39,11 +39,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.ui.theme.MobileHostTheme
+import androidx.compose.foundation.layout.Row
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -359,15 +362,24 @@ private fun CheckScreenContainer(
 }
 
 @Composable
-private fun ActionButton(loading: Boolean, label: String, action: () -> Unit) {
-    Button(
-        onClick = action,
-        enabled = !loading,
-        modifier = Modifier.align(Alignment.End)
+private fun ActionButton(
+    loading: Boolean,
+    label: String,
+    action: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
     ) {
-        Text(label)
+        Button(
+            onClick = action,
+            enabled = !loading
+        ) {
+            Text(label)
+        }
     }
 }
+
 
 @Composable
 private fun ResultCard(loading: Boolean, content: @Composable () -> Unit) {
@@ -391,14 +403,112 @@ private fun ResultCard(loading: Boolean, content: @Composable () -> Unit) {
 private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
-    result.body?.takeIf { it.isNotBlank() }?.let {
-        Text(
-            text = it,
-            maxLines = 10,
-            overflow = TextOverflow.Ellipsis
-        )
+    val metricGroups = parseMetricGroups(result.body)
+    if (metricGroups.isNotEmpty()) {
+        MetricsSection(metricGroups)
+    } else {
+        result.body?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text = it,
+                maxLines = 10,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
     result.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
+}
+
+@Composable
+private fun MetricsSection(metricGroups: List<MetricGroup>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Метрики", style = MaterialTheme.typography.titleMedium)
+
+        metricGroups.forEach { group ->
+            group.title?.let { title ->
+                Text(title, style = MaterialTheme.typography.labelLarge)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                group.metrics.forEach { metric ->
+                    MetricRow(metric)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricRow(metric: MetricItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
+        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private data class MetricGroup(val title: String?, val metrics: List<MetricItem>)
+
+private data class MetricItem(val label: String, val value: String)
+
+private fun parseMetricGroups(body: String?): List<MetricGroup> {
+    if (body.isNullOrBlank()) return emptyList()
+
+    return runCatching {
+        val json = JSONObject(body)
+        val groups = mutableListOf<MetricGroup>()
+
+        json.optJSONArray("results")?.let { results ->
+            for (index in 0 until results.length()) {
+                val result = results.optJSONObject(index) ?: continue
+                val metrics = result.optJSONObject("metrics")?.toMetricItems().orEmpty()
+                if (metrics.isNotEmpty()) {
+                    val title = result.optString("checkType", null)?.takeIf { it.isNotBlank() }
+                    groups += MetricGroup(title, metrics)
+                }
+            }
+        }
+
+        json.optJSONObject("metrics")?.toMetricItems()?.takeIf { it.isNotEmpty() }?.let { metrics ->
+            val title = json.optString("checkType", null).takeIf { it.isNotBlank() }
+            groups += MetricGroup(title, metrics)
+        }
+
+        groups
+    }.getOrElse { emptyList() }
+}
+
+private fun JSONObject.toMetricItems(): List<MetricItem> {
+    val metrics = mutableListOf<MetricItem>()
+    keys().forEach { key ->
+        when (val value = opt(key)) {
+            is JSONObject -> {
+                value.keys().forEach { nestedKey ->
+                    metrics += MetricItem(
+                        label = formatMetricLabel("$key.$nestedKey"),
+                        value = value.opt(nestedKey).toString()
+                    )
+                }
+            }
+            null -> Unit
+            else -> metrics += MetricItem(formatMetricLabel(key), value.toString())
+        }
+    }
+    return metrics
+}
+
+private fun formatMetricLabel(raw: String): String {
+    return raw
+        .replace("_", " ")
+        .replace(".", " ")
+        .trim()
+        .split("\\s+".toRegex())
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { part ->
+            part.lowercase().replaceFirstChar { char ->
+                char.titlecase()
+            }
+        }
 }
 
 @Preview(showBackground = true)
