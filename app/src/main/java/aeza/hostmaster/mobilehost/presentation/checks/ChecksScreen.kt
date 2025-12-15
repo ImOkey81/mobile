@@ -41,9 +41,11 @@ import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.domain.model.HeaderItem
 import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
+import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
+import perfetto.protos.TraceMetricV2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
