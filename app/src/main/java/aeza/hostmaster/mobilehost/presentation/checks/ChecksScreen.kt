@@ -41,9 +41,11 @@ import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.domain.model.HeaderItem
 import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
+import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
+import perfetto.protos.TraceMetricV2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -236,6 +238,11 @@ private fun ResultCard(
                     pingJob != null -> {
                         res.jobId?.let { Text("ID задачи: $it") }
                         PingResultSection(pingJob)
+                        res.jobId?.let { jobId ->
+                            Button(onClick = { onRefreshJob(jobId) }, enabled = !loading) {
+                                Text("Обновить статус задачи")
+                            }
+                        }
                     }
                     metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
                     else -> {
@@ -253,16 +260,6 @@ private fun ResultCard(
 
                 if (httpMetrics == null) {
                     res.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
-                }
-
-                res.jobId?.let { jobId ->
-                    if (httpMetrics == null && pingJob == null) {
-                        Text("ID задачи: $jobId")
-                    }
-
-                    Button(onClick = { onRefreshJob(jobId) }, enabled = !loading) {
-                        Text("Обновить статус задачи")
-                    }
                 }
             }
         }
