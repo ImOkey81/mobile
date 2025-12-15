@@ -227,17 +227,20 @@ private fun ResultCard(
             }
 
             result?.let { res ->
-                Text("Код ответа: ${res.statusCode ?: "нет"}")
-                res.jobId?.let { Text("ID задачи: $it") }
-
                 val httpMetrics = parseHttpMetrics(res.body)
                 val pingJob = parsePingJob(res.body)
                 val metricGroups = parseMetricGroups(res.body)
+
                 when {
                     httpMetrics != null -> HttpResultSection(httpMetrics)
-                    pingJob != null -> PingResultSection(pingJob)
+                    pingJob != null -> {
+                        res.jobId?.let { Text("ID задачи: $it") }
+                        PingResultSection(pingJob)
+                    }
                     metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
                     else -> {
+                        Text("Код ответа: ${res.statusCode ?: "нет"}")
+                        res.jobId?.let { Text("ID задачи: $it") }
                         res.body?.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 text = it,
@@ -248,13 +251,19 @@ private fun ResultCard(
                     }
                 }
 
+                if (httpMetrics == null) {
+                    res.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
+                }
+
                 res.jobId?.let { jobId ->
+                    if (httpMetrics == null && pingJob == null) {
+                        Text("ID задачи: $jobId")
+                    }
+
                     Button(onClick = { onRefreshJob(jobId) }, enabled = !loading) {
                         Text("Обновить статус задачи")
                     }
                 }
-
-                res.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
             }
         }
     }
@@ -293,6 +302,17 @@ private fun MetricGroupCard(group: MetricGroup, index: Int) {
                 MetricRow(metric)
             }
         }
+    }
+}
+
+@Composable
+private fun MetricRow(metric: MetricItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
+        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 
