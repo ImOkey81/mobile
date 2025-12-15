@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.domain.model.HeaderItem
 import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
-import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
@@ -263,17 +262,36 @@ private fun ResultCard(
 
 @Composable
 private fun MetricsSection(metricGroups: List<MetricGroup>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Метрики", style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Результаты метрик", style = MaterialTheme.typography.titleMedium)
 
-        metricGroups.forEach { group ->
-            group.title?.let { title ->
-                Text(title, style = MaterialTheme.typography.labelLarge)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                group.metrics.forEach { metric ->
-                    MetricRow(metric)
-                }
+        metricGroups.forEachIndexed { index, group ->
+            MetricGroupCard(group = group, index = index)
+        }
+    }
+}
+
+@Composable
+private fun MetricGroupCard(group: MetricGroup, index: Int) {
+    val title = group.title?.takeIf { it.isNotBlank() }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = title ?: "Результат ${index + 1}",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            group.metrics.forEach { metric ->
+                LabeledRow(metric.label, metric.value)
             }
         }
     }
@@ -283,17 +301,29 @@ private fun MetricsSection(metricGroups: List<MetricGroup>) {
 private fun HttpResultSection(metrics: HttpMetrics) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("HTTP/HTTPS результат", style = MaterialTheme.typography.titleMedium)
-        LabeledRow("Локация агента", metrics.location)
-        LabeledRow("Страна", metrics.country)
-        LabeledRow("IP", metrics.ip)
-        metrics.statusCode?.let { LabeledRow("HTTP статус", it.toString()) }
-        metrics.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
-        metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
-            Text("Заголовки", style = MaterialTheme.typography.labelLarge)
-            HeaderList(headers)
-        }
-        metrics.result?.let { result ->
-            ResultBadge(result)
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 2.dp,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LabeledRow("Локация агента", metrics.location)
+                LabeledRow("Страна", metrics.country)
+                LabeledRow("IP", metrics.ip)
+                metrics.statusCode?.let { LabeledRow("HTTP статус", it.toString()) }
+                metrics.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
+                metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
+                    Text("Заголовки", style = MaterialTheme.typography.labelLarge)
+                    HeaderList(headers)
+                }
+                metrics.result?.let { result ->
+                    ResultBadge(result)
+                }
+            }
         }
     }
 }
@@ -331,17 +361,6 @@ private fun ResultBadge(result: String) {
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun MetricRow(metric: MetricItem) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
-        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
