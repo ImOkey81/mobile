@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-internal data class CheckUiState(
+data class CheckUiState(
     val selectedTab: CheckTab = CheckTab.HTTP,
     val httpTarget: String = "https://example.com",
     val pingTarget: String = "1.1.1.1",
