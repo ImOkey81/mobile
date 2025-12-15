@@ -58,6 +58,7 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.okhttp)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.okhttp.logging)
     implementation(libs.androidx.benchmark.traceprocessor)
 
