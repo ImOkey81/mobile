@@ -227,17 +227,24 @@ private fun ResultCard(
             }
 
             result?.let { res ->
-                Text("Код ответа: ${res.statusCode ?: "нет"}")
-                res.jobId?.let { Text("ID задачи: $it") }
-
                 val httpMetrics = parseHttpMetrics(res.body)
                 val pingJob = parsePingJob(res.body)
                 val metricGroups = parseMetricGroups(res.body)
                 when {
                     httpMetrics != null -> HttpResultSection(httpMetrics)
-                    pingJob != null -> PingResultSection(pingJob)
+                    pingJob != null -> {
+                        res.jobId?.let { Text("ID задачи: $it") }
+                        PingResultSection(pingJob)
+                        res.jobId?.let { jobId ->
+                            Button(onClick = { onRefreshJob(jobId) }, enabled = !loading) {
+                                Text("Обновить статус задачи")
+                            }
+                        }
+                    }
                     metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
                     else -> {
+                        Text("Код ответа: ${res.statusCode ?: "нет"}")
+                        res.jobId?.let { Text("ID задачи: $it") }
                         res.body?.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 text = it,
@@ -248,13 +255,9 @@ private fun ResultCard(
                     }
                 }
 
-                res.jobId?.let { jobId ->
-                    Button(onClick = { onRefreshJob(jobId) }, enabled = !loading) {
-                        Text("Обновить статус задачи")
-                    }
+                if (httpMetrics == null) {
+                    res.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
                 }
-
-                res.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
             }
         }
     }
