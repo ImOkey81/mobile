@@ -24,6 +24,18 @@ data class MetricGroup(val title: String?, val metrics: List<MetricItem>)
 
 data class MetricItem(val label: String, val value: String)
 
+data class HeaderItem(val name: String, val value: String)
+
+data class HttpMetrics(
+    val location: String?,
+    val country: String?,
+    val ip: String?,
+    val statusCode: Int?,
+    val timeMillis: Long?,
+    val result: String?,
+    val headers: List<HeaderItem>?
+)
+
 data class PingJob(
     val id: String?,
     val target: String?,

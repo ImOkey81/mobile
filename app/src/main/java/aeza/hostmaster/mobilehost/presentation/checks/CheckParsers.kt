@@ -1,5 +1,7 @@
 package aeza.hostmaster.mobilehost.presentation.checks
 
+import aeza.hostmaster.mobilehost.domain.model.HeaderItem
+import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
 import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
@@ -32,6 +34,35 @@ internal fun parseMetricGroups(body: String?): List<MetricGroup> {
 
         groups
     }.getOrElse { emptyList() }
+}
+
+internal fun parseHttpMetrics(body: String?): HttpMetrics? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+        val httpObject = json.optJSONObject("http") ?: return@runCatching null
+
+        val headers = httpObject.optJSONObject("headers")?.let { headersObject ->
+            buildList {
+                headersObject.keys().forEach { key ->
+                    headersObject.opt(key)?.toString()?.let { value ->
+                        add(HeaderItem(name = key, value = value))
+                    }
+                }
+            }.takeUnless { it.isEmpty() }
+        }
+
+        HttpMetrics(
+            location = httpObject.optString("location", null),
+            country = httpObject.optString("country", null),
+            ip = httpObject.optString("ip", null),
+            statusCode = httpObject.optInt("statusCode", -1).takeIf { it >= 0 },
+            timeMillis = httpObject.optLong("timeMillis", -1L).takeIf { it >= 0 },
+            result = httpObject.optString("result", null),
+            headers = headers
+        )
+    }.getOrNull()
 }
 
 internal fun parsePingJob(body: String?): PingJob? {
