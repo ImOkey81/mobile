@@ -273,27 +273,24 @@ private fun MetricsSection(metricGroups: List<MetricGroup>) {
 
 @Composable
 private fun MetricGroupCard(group: MetricGroup, index: Int) {
-    val title = group.title?.takeIf { it.isNotBlank() }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title?.let { "Результат проверки: $it" } ?: "Результат ${index + 1}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 2.dp,
-            shape = RoundedCornerShape(12.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                group.metrics.forEach { metric ->
-                    LabeledRow(metric.label, metric.value)
-                }
+            val title = group.title?.takeIf { it.isNotBlank() }
+            Text(
+                text = title?.let { "Результат проверки: $it" } ?: "Результат ${index + 1}",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            group.metrics.forEach { metric ->
+                MetricRow(metric)
             }
         }
     }
