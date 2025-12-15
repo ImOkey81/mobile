@@ -41,7 +41,9 @@ internal fun parseHttpMetrics(body: String?): HttpMetrics? {
 
     return runCatching {
         val json = JSONObject(body)
-        val httpObject = json.optJSONObject("http") ?: return@runCatching null
+        val httpObject = json.optJSONObject("http")
+            ?: json.optJSONObject("result")?.optJSONObject("http")
+            ?: return@runCatching null
 
         val headers = httpObject.optJSONObject("headers")?.let { headersObject ->
             buildList {
