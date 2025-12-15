@@ -13,8 +13,8 @@ import org.json.JSONObject
 
 private const val BASE_URL = "http://91.107.126.43:8080"
 private const val CHECKS_ENDPOINT = "$BASE_URL/api/checks"
-private const val USERNAME = "siderea_78&&"
-private const val PASSWORD = "sidereaGISART_78&&"
+private const val USERNAME = "admin"
+private const val PASSWORD = "admin"
 
 data class ServerCheckResult(
     val statusCode: Int?,
