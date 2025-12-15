@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.domain.model.HeaderItem
 import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
-import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
@@ -349,17 +348,6 @@ private fun ResultBadge(result: String) {
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun MetricRow(metric: MetricItem) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
-        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
