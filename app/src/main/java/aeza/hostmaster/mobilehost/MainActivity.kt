@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.ui.theme.MobileHostTheme
+import androidx.benchmark.traceprocessor.Row
+import androidx.compose.foundation.layout.Row
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -358,16 +360,26 @@ private fun CheckScreenContainer(
     }
 }
 
+
 @Composable
-private fun ActionButton(loading: Boolean, label: String, action: () -> Unit) {
-    Button(
-        onClick = action,
-        enabled = !loading,
-        modifier = Modifier.align(Alignment.End)
+private fun ActionButton(
+    loading: Boolean,
+    label: String,
+    action: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
     ) {
-        Text(label)
+        Button(
+            onClick = action,
+            enabled = !loading
+        ) {
+            Text(label)
+        }
     }
 }
+
 
 @Composable
 private fun ResultCard(loading: Boolean, content: @Composable () -> Unit) {
