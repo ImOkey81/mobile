@@ -1,4 +1,4 @@
-package aeza.hostmaster.mobilehost.ui.theme
+package aeza.hostmaster.mobilehost.presentation.theme
 
 import android.app.Activity
 import android.os.Build
