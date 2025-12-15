@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -45,8 +46,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.ui.theme.MobileHostTheme
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -467,17 +470,57 @@ private fun PingResultSection(job: PingJob) {
             LabeledRow("Статус", result.status)
             result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
             result.ping?.let { ping ->
-                LabeledRow("Локация", ping.location)
-                LabeledRow("Страна", ping.country)
-                LabeledRow("IP", ping.ip)
-                ping.transmitted?.let { LabeledRow("Отправлено пакетов", it.toString()) }
-                ping.received?.let { LabeledRow("Получено пакетов", it.toString()) }
-                ping.packetLoss?.let { LabeledRow("Потеря пакетов", "$it %") }
-                ping.minRtt?.let { LabeledRow("Минимальный RTT", "$it мс") }
-                ping.avgRtt?.let { LabeledRow("Средний RTT", "$it мс") }
-                ping.maxRtt?.let { LabeledRow("Максимальный RTT", "$it мс") }
+                PingLatencySummary(ping)
             }
         }
+    }
+}
+
+@Composable
+private fun PingLatencySummary(ping: PingMetrics) {
+    val latencyMetrics = listOfNotNull(
+        ping.minRtt?.let { "Мин" to it },
+        ping.avgRtt?.let { "Средн" to it },
+        ping.maxRtt?.let { "Макс" to it }
+    )
+
+    if (latencyMetrics.isEmpty()) return
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            latencyMetrics.forEach { (label, value) ->
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "$label RTT",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${formatLatency(value)} мс",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatLatency(value: Double): String {
+    return if (value % 1.0 == 0.0) {
+        value.toInt().toString()
+    } else {
+        String.format(Locale.US, "%.2f", value)
     }
 }
 
