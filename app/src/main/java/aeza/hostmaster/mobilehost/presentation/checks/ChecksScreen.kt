@@ -228,6 +228,9 @@ private fun ResultCard(
             }
 
             result?.let { res ->
+                Text("Код ответа: ${res.statusCode ?: "нет"}")
+                res.jobId?.let { Text("ID задачи: $it") }
+
                 val httpMetrics = parseHttpMetrics(res.body)
                 val pingJob = parsePingJob(res.body)
                 val metricGroups = parseMetricGroups(res.body)
@@ -286,48 +289,12 @@ private fun HttpResultSection(metrics: HttpMetrics) {
         LabeledRow("Локация агента", metrics.location)
         LabeledRow("Страна", metrics.country)
         LabeledRow("IP", metrics.ip)
-
-        val coreMetrics = listOfNotNull(
-            metrics.statusCode?.let { "HTTP статус" to it.toString() },
-            metrics.timeMillis?.let { "Время ответа" to "$it мс" }
-        )
-
-        if (coreMetrics.isNotEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 2.dp,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    coreMetrics.forEach { (label, value) ->
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = value,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
+        metrics.statusCode?.let { LabeledRow("HTTP статус", it.toString()) }
+        metrics.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
         metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
             Text("Заголовки", style = MaterialTheme.typography.labelLarge)
             HeaderList(headers)
         }
-
         metrics.result?.let { result ->
             ResultBadge(result)
         }
