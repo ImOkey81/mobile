@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import aeza.hostmaster.mobilehost.domain.model.HeaderItem
+import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
 import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
@@ -226,15 +228,17 @@ private fun ResultCard(
             }
 
             result?.let { res ->
-                Text("Код ответа: ${res.statusCode ?: "нет"}")
-                res.jobId?.let { Text("ID задачи: $it") }
-
+                val httpMetrics = parseHttpMetrics(res.body)
                 val pingJob = parsePingJob(res.body)
                 val metricGroups = parseMetricGroups(res.body)
+
                 when {
+                    httpMetrics != null -> HttpResultSection(httpMetrics)
                     pingJob != null -> PingResultSection(pingJob)
                     metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
                     else -> {
+                        res.statusCode?.let { Text("Код ответа: $it") }
+                        res.jobId?.let { Text("ID задачи: $it") }
                         res.body?.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 text = it,
@@ -272,6 +276,97 @@ private fun MetricsSection(metricGroups: List<MetricGroup>) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HttpResultSection(metrics: HttpMetrics) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("HTTP/HTTPS результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("Локация агента", metrics.location)
+        LabeledRow("Страна", metrics.country)
+        LabeledRow("IP", metrics.ip)
+
+        val coreMetrics = listOfNotNull(
+            metrics.statusCode?.let { "HTTP статус" to it.toString() },
+            metrics.timeMillis?.let { "Время ответа" to "$it мс" }
+        )
+
+        if (coreMetrics.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 2.dp,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    coreMetrics.forEach { (label, value) ->
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        metrics.headers?.takeIf { it.isNotEmpty() }?.let { headers ->
+            Text("Заголовки", style = MaterialTheme.typography.labelLarge)
+            HeaderList(headers)
+        }
+
+        metrics.result?.let { result ->
+            ResultBadge(result)
+        }
+    }
+}
+
+@Composable
+private fun HeaderList(headers: List<HeaderItem>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        headers.forEach { header ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(header.name, style = MaterialTheme.typography.bodyMedium)
+                Text(header.value, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultBadge(result: String) {
+    val isOk = result.equals("ok", ignoreCase = true)
+    val background = if (isOk) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+    val contentColor = if (isOk) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = background,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            text = if (isOk) "Результат: норм" else "Результат: не норм",
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 16.dp),
+            color = contentColor,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
