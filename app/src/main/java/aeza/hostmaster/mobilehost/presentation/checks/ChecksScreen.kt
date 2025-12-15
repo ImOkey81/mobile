@@ -232,6 +232,7 @@ private fun ResultCard(
                 val httpMetrics = parseHttpMetrics(res.body)
                 val pingJob = parsePingJob(res.body)
                 val metricGroups = parseMetricGroups(res.body)
+
                 when {
                     httpMetrics != null -> HttpResultSection(httpMetrics)
                     pingJob != null -> {
