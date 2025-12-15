@@ -407,9 +407,11 @@ private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
     val pingJob = parsePingJob(result.body)
+    val httpResult = parseHttpResult(result.body)
     val metricGroups = parseMetricGroups(result.body)
     when {
         pingJob != null -> PingResultSection(pingJob)
+        httpResult != null -> HttpResultSection(httpResult)
         metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
         else -> {
             result.body?.takeIf { it.isNotBlank() }?.let {
@@ -450,6 +452,23 @@ private fun MetricRow(metric: MetricItem) {
     ) {
         Text(metric.label, style = MaterialTheme.typography.bodyMedium)
         Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun HttpResultSection(result: HttpCheckResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("HTTP результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("Локация", result.location)
+        LabeledRow("Страна", result.country)
+        result.timeMillis?.let { LabeledRow("Время, мс", it.toString()) }
+        result.statusCode?.let { LabeledRow("HTTP код", it.toString()) }
+        LabeledRow("IP", result.ip)
+        LabeledRow("Результат", result.result)
+        result.headers?.takeIf { it.isNotBlank() }?.let {
+            Text("Заголовки:")
+            Text(it)
+        }
     }
 }
 
@@ -540,6 +559,16 @@ private data class MetricGroup(val title: String?, val metrics: List<MetricItem>
 
 private data class MetricItem(val label: String, val value: String)
 
+private data class HttpCheckResult(
+    val location: String?,
+    val country: String?,
+    val timeMillis: Long?,
+    val statusCode: Int?,
+    val ip: String?,
+    val result: String?,
+    val headers: String?
+)
+
 private data class PingJob(
     val id: String?,
     val target: String?,
@@ -595,6 +624,35 @@ private fun parseMetricGroups(body: String?): List<MetricGroup> {
 
         groups
     }.getOrElse { emptyList() }
+}
+
+private fun parseHttpResult(body: String?): HttpCheckResult? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+
+        val httpObject = json.optJSONObject("http")
+            ?: json.optJSONObject("result")?.optJSONObject("http")
+            ?: json.optJSONArray("result")?.let { results ->
+                (0 until results.length()).firstNotNullOfOrNull { index ->
+                    results.optJSONObject(index)?.optJSONObject("http")
+                }
+            }
+
+        httpObject ?: return@runCatching null
+
+        HttpCheckResult(
+            location = httpObject.optString("location", null),
+            country = httpObject.optString("country", null),
+            timeMillis = httpObject.optLong("timeMillis", 0L).takeIf { it > 0 },
+            statusCode = httpObject.optInt("statusCode", 0).takeIf { it > 0 },
+            ip = httpObject.optString("ip", null),
+            result = httpObject.optString("result", null),
+            headers = httpObject.optJSONObject("headers")?.toString(2)
+                ?: httpObject.optString("headers", null)
+        )
+    }.getOrNull()
 }
 
 private fun parsePingJob(body: String?): PingJob? {
