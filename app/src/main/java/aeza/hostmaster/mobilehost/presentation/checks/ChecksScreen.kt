@@ -300,6 +300,17 @@ private fun MetricGroupCard(group: MetricGroup, index: Int) {
 }
 
 @Composable
+private fun MetricRow(metric: MetricItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
+        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
 private fun HttpResultSection(metrics: HttpMetrics) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("HTTP/HTTPS результат", style = MaterialTheme.typography.titleMedium)
