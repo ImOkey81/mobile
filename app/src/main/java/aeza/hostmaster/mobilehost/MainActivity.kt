@@ -451,25 +451,6 @@ private data class MetricGroup(val title: String?, val metrics: List<MetricItem>
 
 private data class MetricItem(val label: String, val value: String)
 
-private val metadataKeys = setOf(
-    "id",
-    "jobId",
-    "checkType",
-    "checkTypes",
-    "createdAt",
-    "createdBy",
-    "target",
-    "host",
-    "location",
-    "result",
-    "results",
-    "log",
-    "logs",
-    "message",
-    "error",
-    "errors"
-)
-
 private fun parseMetricGroups(body: String?): List<MetricGroup> {
     if (body.isNullOrBlank()) return emptyList()
 
@@ -480,66 +461,37 @@ private fun parseMetricGroups(body: String?): List<MetricGroup> {
         json.optJSONArray("results")?.let { results ->
             for (index in 0 until results.length()) {
                 val result = results.optJSONObject(index) ?: continue
-                collectMetrics(result)?.let { metrics ->
+                val metrics = result.optJSONObject("metrics")?.toMetricItems().orEmpty()
+                if (metrics.isNotEmpty()) {
                     val title = result.optString("checkType", null)?.takeIf { it.isNotBlank() }
                     groups += MetricGroup(title, metrics)
                 }
             }
         }
 
-        json.optJSONObject("result")?.let { result ->
-            collectMetrics(result)?.let { metrics ->
-                val title = json.optString("checkType", null).takeIf { it.isNotBlank() }
-                groups += MetricGroup(title, metrics)
-            }
-        }
-
-        json.optJSONObject("metrics")?.extractNumericMetrics()?.takeIf { it.isNotEmpty() }?.let { metrics ->
+        json.optJSONObject("metrics")?.toMetricItems()?.takeIf { it.isNotEmpty() }?.let { metrics ->
             val title = json.optString("checkType", null).takeIf { it.isNotBlank() }
             groups += MetricGroup(title, metrics)
-        }
-
-        if (groups.isEmpty()) {
-            collectMetrics(json)?.let { metrics ->
-                val title = json.optString("checkType", null).takeIf { it.isNotBlank() }
-                groups += MetricGroup(title, metrics)
-            }
         }
 
         groups
     }.getOrElse { emptyList() }
 }
 
-private fun collectMetrics(container: JSONObject): List<MetricItem>? {
-    val mergedMetrics = linkedMapOf<String, MetricItem>()
-
-    container.extractNumericMetrics(metadataKeys).forEach { metric ->
-        mergedMetrics[metric.label] = metric
-    }
-
-    container.optJSONObject("metrics")?.extractNumericMetrics()?.forEach { metric ->
-        mergedMetrics[metric.label] = metric
-    }
-
-    return mergedMetrics.values.takeIf { it.isNotEmpty() }?.toList()
-}
-
-private fun JSONObject.extractNumericMetrics(
-    ignoredKeys: Set<String> = emptySet(),
-    prefix: String = ""
-): List<MetricItem> {
+private fun JSONObject.toMetricItems(): List<MetricItem> {
     val metrics = mutableListOf<MetricItem>()
     keys().forEach { key ->
-        if (ignoredKeys.contains(key)) return@forEach
-
-        val value = opt(key)
-        val label = if (prefix.isNotBlank()) "$prefix.$key" else key
-        when (value) {
-            is Number, is Boolean -> metrics += MetricItem(
-                label = formatMetricLabel(label),
-                value = value.toString()
-            )
-            is JSONObject -> metrics += value.extractNumericMetrics(ignoredKeys, label)
+        when (val value = opt(key)) {
+            is JSONObject -> {
+                value.keys().forEach { nestedKey ->
+                    metrics += MetricItem(
+                        label = formatMetricLabel("$key.$nestedKey"),
+                        value = value.opt(nestedKey).toString()
+                    )
+                }
+            }
+            null -> Unit
+            else -> metrics += MetricItem(formatMetricLabel(key), value.toString())
         }
     }
     return metrics
