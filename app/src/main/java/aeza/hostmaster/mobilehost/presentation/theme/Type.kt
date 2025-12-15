@@ -1,4 +1,4 @@
-package aeza.hostmaster.mobilehost.ui.theme
+package aeza.hostmaster.mobilehost.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
