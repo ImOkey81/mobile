@@ -403,16 +403,19 @@ private fun ResultCard(loading: Boolean, content: @Composable () -> Unit) {
 private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
+    val pingJob = parsePingJob(result.body)
     val metricGroups = parseMetricGroups(result.body)
-    if (metricGroups.isNotEmpty()) {
-        MetricsSection(metricGroups)
-    } else {
-        result.body?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                text = it,
-                maxLines = 10,
-                overflow = TextOverflow.Ellipsis
-            )
+    when {
+        pingJob != null -> PingResultSection(pingJob)
+        metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
+        else -> {
+            result.body?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    maxLines = 10,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
     result.error?.let { Text("Ошибка: $it", color = MaterialTheme.colorScheme.error) }
@@ -447,9 +450,82 @@ private fun MetricRow(metric: MetricItem) {
     }
 }
 
+@Composable
+private fun PingResultSection(job: PingJob) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("PING результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("ID", job.id)
+        LabeledRow("Цель", job.target)
+        LabeledRow("Статус", job.status)
+        LabeledRow("Запуск", job.executedAt)
+        LabeledRow("Завершено", job.finishedAt ?: "—")
+        job.totalDurationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+
+        job.results.forEachIndexed { index, result ->
+            Text("Измерение ${index + 1}", style = MaterialTheme.typography.labelLarge)
+            LabeledRow("ID результата", result.id)
+            LabeledRow("Статус", result.status)
+            result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+            result.ping?.let { ping ->
+                LabeledRow("Локация", ping.location)
+                LabeledRow("Страна", ping.country)
+                LabeledRow("IP", ping.ip)
+                ping.transmitted?.let { LabeledRow("Отправлено пакетов", it.toString()) }
+                ping.received?.let { LabeledRow("Получено пакетов", it.toString()) }
+                ping.packetLoss?.let { LabeledRow("Потеря пакетов", "$it %") }
+                ping.minRtt?.let { LabeledRow("Минимальный RTT", "$it мс") }
+                ping.avgRtt?.let { LabeledRow("Средний RTT", "$it мс") }
+                ping.maxRtt?.let { LabeledRow("Максимальный RTT", "$it мс") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabeledRow(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
 private data class MetricGroup(val title: String?, val metrics: List<MetricItem>)
 
 private data class MetricItem(val label: String, val value: String)
+
+private data class PingJob(
+    val id: String?,
+    val target: String?,
+    val status: String?,
+    val executedAt: String?,
+    val finishedAt: String?,
+    val totalDurationMillis: Long?,
+    val results: List<PingResult>
+)
+
+private data class PingResult(
+    val id: String?,
+    val type: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val ping: PingMetrics?
+)
+
+private data class PingMetrics(
+    val location: String?,
+    val country: String?,
+    val ip: String?,
+    val transmitted: Int?,
+    val received: Int?,
+    val packetLoss: Double?,
+    val minRtt: Double?,
+    val avgRtt: Double?,
+    val maxRtt: Double?
+)
 
 private fun parseMetricGroups(body: String?): List<MetricGroup> {
     if (body.isNullOrBlank()) return emptyList()
@@ -476,6 +552,54 @@ private fun parseMetricGroups(body: String?): List<MetricGroup> {
 
         groups
     }.getOrElse { emptyList() }
+}
+
+private fun parsePingJob(body: String?): PingJob? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+        val resultsArray = json.optJSONArray("result") ?: return@runCatching null
+
+        val pingResults = buildList {
+            for (index in 0 until resultsArray.length()) {
+                val resultObject = resultsArray.optJSONObject(index) ?: continue
+                val pingObject = resultObject.optJSONObject("ping") ?: continue
+
+                add(
+                    PingResult(
+                        id = resultObject.optString("id", null),
+                        type = resultObject.optString("type", null),
+                        status = resultObject.optString("status", null),
+                        durationMillis = resultObject.optLong("durationMillis", 0L).takeIf { it > 0 },
+                        ping = PingMetrics(
+                            location = pingObject.optString("location", null),
+                            country = pingObject.optString("country", null),
+                            ip = pingObject.optString("ip", null),
+                            transmitted = pingObject.optInt("transmitted", -1).takeIf { it >= 0 },
+                            received = pingObject.optInt("received", -1).takeIf { it >= 0 },
+                            packetLoss = pingObject.optDouble("packetLoss", Double.NaN).takeUnless { it.isNaN() },
+                            minRtt = pingObject.optDouble("minRtt", Double.NaN).takeUnless { it.isNaN() },
+                            avgRtt = pingObject.optDouble("avgRtt", Double.NaN).takeUnless { it.isNaN() },
+                            maxRtt = pingObject.optDouble("maxRtt", Double.NaN).takeUnless { it.isNaN() }
+                        )
+                    )
+                )
+            }
+        }
+
+        if (pingResults.isEmpty()) return@runCatching null
+
+        PingJob(
+            id = json.optString("id", null),
+            target = json.optString("target", null),
+            status = json.optString("status", null),
+            executedAt = json.optString("executedAt", null),
+            finishedAt = json.optString("finishedAt", null),
+            totalDurationMillis = json.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
+            results = pingResults
+        )
+    }.getOrNull()
 }
 
 private fun JSONObject.toMetricItems(): List<MetricItem> {
