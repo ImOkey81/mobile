@@ -43,6 +43,7 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.androidx.compose.bom))
@@ -54,11 +55,8 @@ dependencies {
     // 🔥 ВАЖНО — ИКОНКИ
     implementation("androidx.compose.material:material-icons-extended")
 
-
-
     implementation(libs.androidx.navigation.compose)
     implementation(libs.okhttp)
-    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.okhttp.logging)
     implementation(libs.androidx.benchmark.traceprocessor)
 
