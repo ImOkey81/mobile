@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import aeza.hostmaster.mobilehost.domain.model.HeaderItem
 import aeza.hostmaster.mobilehost.domain.model.HttpMetrics
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
-import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
@@ -266,13 +265,34 @@ private fun MetricsSection(metricGroups: List<MetricGroup>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Метрики", style = MaterialTheme.typography.titleMedium)
 
-        metricGroups.forEach { group ->
-            group.title?.let { title ->
-                Text(title, style = MaterialTheme.typography.labelLarge)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        metricGroups.forEachIndexed { index, group ->
+            MetricGroupCard(group = group, index = index)
+        }
+    }
+}
+
+@Composable
+private fun MetricGroupCard(group: MetricGroup, index: Int) {
+    val title = group.title?.takeIf { it.isNotBlank() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title?.let { "Результат проверки: $it" } ?: "Результат ${index + 1}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 2.dp,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 group.metrics.forEach { metric ->
-                    MetricRow(metric)
+                    LabeledRow(metric.label, metric.value)
                 }
             }
         }
@@ -331,17 +351,6 @@ private fun ResultBadge(result: String) {
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun MetricRow(metric: MetricItem) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(metric.label, style = MaterialTheme.typography.bodyMedium)
-        Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
