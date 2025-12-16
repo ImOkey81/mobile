@@ -408,10 +408,12 @@ private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
     val pingJob = parsePingJob(result.body)
+    val tracerouteResult = parseTracerouteResult(result.body)
     val httpResult = parseHttpResult(result.body)
     val metricGroups = parseMetricGroups(result.body)
     when {
         pingJob != null -> PingResultSection(pingJob)
+        tracerouteResult != null -> TracerouteResultSection(tracerouteResult)
         httpResult != null -> HttpResultSection(httpResult)
         metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
         else -> {
@@ -638,6 +640,20 @@ private data class PingMetrics(
     val maxRtt: Double?
 )
 
+private data class TracerouteResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val message: String?,
+    val hops: List<TracerouteHop>
+)
+
+private data class TracerouteHop(
+    val hop: Int?,
+    val ip: String?,
+    val time: String?
+)
+
 private fun parseMetricGroups(body: String?): List<MetricGroup> {
     if (body.isNullOrBlank()) return emptyList()
 
@@ -738,6 +754,72 @@ private fun parsePingJob(body: String?): PingJob? {
             finishedAt = json.optString("finishedAt", null),
             totalDurationMillis = json.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
             results = pingResults
+        )
+    }.getOrNull()
+}
+
+private fun parseTracerouteResult(body: String?): TracerouteResult? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+
+        val (containerObject, tracerouteObject) = when {
+            json.optJSONObject("traceroute") != null -> json to json.getJSONObject("traceroute")
+            json.optJSONObject("result")?.optJSONObject("traceroute") != null -> {
+                val resultObject = json.getJSONObject("result")
+                resultObject to resultObject.getJSONObject("traceroute")
+            }
+            else -> {
+                val resultArray = json.optJSONArray("result") ?: return@runCatching null
+                var matchedContainer: JSONObject? = null
+                var matchedTraceroute: JSONObject? = null
+
+                for (index in 0 until resultArray.length()) {
+                    val item = resultArray.optJSONObject(index) ?: continue
+                    val traceroute = item.optJSONObject("traceroute") ?: continue
+                    matchedContainer = item
+                    matchedTraceroute = traceroute
+                    break
+                }
+
+                val traceroute = matchedTraceroute ?: return@runCatching null
+                val container = matchedContainer ?: json
+                container to traceroute
+            }
+        }
+
+        val hops = tracerouteObject.optJSONArray("hops")?.let { hopsArray ->
+            buildList {
+                for (index in 0 until hopsArray.length()) {
+                    val hopObject = hopsArray.optJSONObject(index) ?: continue
+                    val hopIp = hopObject.optString("ip", null).takeUnless { it.isNullOrBlank() }
+                    val hopLatency = hopObject.optString("time", null).takeUnless { it.isNullOrBlank() }
+                        ?: hopObject.optString("latency", null).takeUnless { it.isNullOrBlank() }
+                        ?: hopObject.optDouble("latency", Double.NaN)
+                            .takeUnless { it.isNaN() }?.toString()
+
+                    add(
+                        TracerouteHop(
+                            hop = hopObject.optInt("hop", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE },
+                            ip = hopIp,
+                            time = hopLatency
+                        )
+                    )
+                }
+            }
+        }.orEmpty()
+
+        TracerouteResult(
+            id = containerObject.optString("id", null).takeUnless { it.isNullOrBlank() }
+                ?: json.optString("id", null).takeIf { it.isNotBlank() },
+            status = containerObject.optString("status", null).takeUnless { it.isNullOrBlank() }
+                ?: json.optString("status", null).takeIf { it.isNotBlank() },
+            durationMillis = containerObject.optLong("durationMillis", 0L).takeIf { it > 0 }
+                ?: containerObject.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
+            message = tracerouteObject.optString("message", null).takeUnless { it.isNullOrBlank() }
+                ?: containerObject.optString("message", null).takeUnless { it.isNullOrBlank() },
+            hops = hops
         )
     }.getOrNull()
 }
