@@ -408,12 +408,10 @@ private fun CheckResultSummary(result: ServerCheckResult) {
     result.jobId?.let { Text("ID задачи: $it") }
     val pingJob = parsePingJob(result.body)
     val httpResult = parseHttpResult(result.body)
-    val tracerouteResult = parseTracerouteResult(result.body)
     val metricGroups = parseMetricGroups(result.body)
     when {
         pingJob != null -> PingResultSection(pingJob)
         httpResult != null -> HttpResultSection(httpResult)
-        tracerouteResult != null -> TracerouteResultSection(tracerouteResult)
         metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
         else -> {
             result.body?.takeIf { it.isNotBlank() }?.let {
@@ -609,20 +607,6 @@ private data class HttpCheckResult(
     val headers: String?
 )
 
-private data class TracerouteResult(
-    val id: String?,
-    val status: String?,
-    val durationMillis: Long?,
-    val message: String?,
-    val hops: List<TracerouteHop>
-)
-
-private data class TracerouteHop(
-    val hop: Int?,
-    val ip: String?,
-    val time: String?
-)
-
 private data class PingJob(
     val id: String?,
     val target: String?,
@@ -705,47 +689,6 @@ private fun parseHttpResult(body: String?): HttpCheckResult? {
             result = httpObject.optString("result", null),
             headers = httpObject.optJSONObject("headers")?.toString(2)
                 ?: httpObject.optString("headers", null)
-        )
-    }.getOrNull()
-}
-
-private fun parseTracerouteResult(body: String?): TracerouteResult? {
-    if (body.isNullOrBlank()) return null
-
-    return runCatching {
-        val json = JSONObject(body)
-        val resultsArray = json.optJSONArray("result") ?: return@runCatching null
-
-        val targetResult = (0 until resultsArray.length()).firstNotNullOfOrNull { index ->
-            val resultObject = resultsArray.optJSONObject(index) ?: return@firstNotNullOfOrNull null
-            val tracerouteObject = resultObject.optJSONObject("traceroute") ?: return@firstNotNullOfOrNull null
-            resultObject to tracerouteObject
-        } ?: return@runCatching null
-
-        val resultObject = targetResult.first
-        val tracerouteObject = targetResult.second
-
-        val hops = tracerouteObject.optJSONArray("hops")?.let { hopsArray ->
-            buildList {
-                for (index in 0 until hopsArray.length()) {
-                    val hopObject = hopsArray.optJSONObject(index) ?: continue
-                    add(
-                        TracerouteHop(
-                            hop = hopObject.optInt("hop", -1).takeIf { it >= 0 },
-                            ip = hopObject.optString("ip", null),
-                            time = hopObject.optString("time", null)
-                        )
-                    )
-                }
-            }
-        } ?: emptyList()
-
-        TracerouteResult(
-            id = resultObject.optString("id", null),
-            status = resultObject.optString("status", null),
-            durationMillis = resultObject.optLong("durationMillis", 0L).takeIf { it > 0 },
-            message = resultObject.optString("message", null),
-            hops = hops
         )
     }.getOrNull()
 }
