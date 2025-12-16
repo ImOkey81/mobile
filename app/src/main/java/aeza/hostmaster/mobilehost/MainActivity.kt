@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import aeza.hostmaster.mobilehost.di.AppModule
+import aeza.hostmaster.mobilehost.presentation.auth.AuthViewModel
+import aeza.hostmaster.mobilehost.presentation.checks.CheckViewModel
 import aeza.hostmaster.mobilehost.presentation.navigation.AppNavHost
 import aeza.hostmaster.mobilehost.presentation.theme.MobileHostTheme
 
@@ -25,10 +27,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun MobileHostApp() {
     MobileHostTheme {
-        val appModule = remember { AppModule }
+
         val navController = rememberNavController()
-        val authViewModel = viewModel(factory = appModule.authViewModelFactory())
-        val checkViewModel = viewModel(factory = appModule.checkViewModelFactory())
+
+        val authViewModel: AuthViewModel = viewModel(
+            factory = AppModule.authViewModelFactory()
+        )
+
+        val checkViewModel: CheckViewModel = viewModel(
+            factory = AppModule.checkViewModelFactory()
+        )
 
         AppNavHost(
             navController = navController,
@@ -37,3 +45,4 @@ private fun MobileHostApp() {
         )
     }
 }
+
