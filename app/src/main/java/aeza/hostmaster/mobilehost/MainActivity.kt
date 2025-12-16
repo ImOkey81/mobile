@@ -496,6 +496,44 @@ private fun PingResultSection(job: PingJob) {
 }
 
 @Composable
+private fun TracerouteResultSection(result: TracerouteResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Traceroute результат", style = MaterialTheme.typography.titleMedium)
+
+        LabeledRow("ID", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        LabeledRow("Сообщение", result.message)
+
+        if (result.hops.isNotEmpty()) {
+            Text("Хопы", style = MaterialTheme.typography.labelLarge)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 1.dp,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    result.hops.forEach { hop ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val hopLabel = hop.hop?.let { "$it" } ?: "—"
+                            Text("Хоп $hopLabel", style = MaterialTheme.typography.bodyMedium)
+                            val hopInfo = buildList {
+                                hop.ip?.takeIf { it.isNotBlank() }?.let { add(it) }
+                                hop.time?.takeIf { it.isNotBlank() }?.let { add(it) }
+                            }.joinToString(separator = " · ").ifBlank { "нет данных" }
+                            Text(hopInfo, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun PingLatencySummary(ping: PingMetrics) {
     val latencyMetrics = listOfNotNull(
         ping.minRtt?.let { "Мин" to it },
