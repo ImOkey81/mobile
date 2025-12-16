@@ -1,4 +1,4 @@
-package aeza.hostmaster.mobilehost.ui.theme
+package aeza.hostmaster.mobilehost.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
