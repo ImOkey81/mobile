@@ -48,6 +48,7 @@ import aeza.hostmaster.mobilehost.ui.theme.MobileHostTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
@@ -407,9 +408,13 @@ private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
     val pingJob = parsePingJob(result.body)
+    val httpResult = parseHttpResult(result.body)
+    val tracerouteResult = parseTracerouteResult(result.body)
     val metricGroups = parseMetricGroups(result.body)
     when {
         pingJob != null -> PingResultSection(pingJob)
+        httpResult != null -> HttpResultSection(httpResult)
+        tracerouteResult != null -> TracerouteResultSection(tracerouteResult)
         metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
         else -> {
             result.body?.takeIf { it.isNotBlank() }?.let {
@@ -454,6 +459,23 @@ private fun MetricRow(metric: MetricItem) {
 }
 
 @Composable
+private fun HttpResultSection(result: HttpCheckResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("HTTP результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("Локация", result.location)
+        LabeledRow("Страна", result.country)
+        result.timeMillis?.let { LabeledRow("Время, мс", it.toString()) }
+        result.statusCode?.let { LabeledRow("HTTP код", it.toString()) }
+        LabeledRow("IP", result.ip)
+        LabeledRow("Результат", result.result)
+        result.headers?.takeIf { it.isNotBlank() }?.let {
+            Text("Заголовки:")
+            Text(it)
+        }
+    }
+}
+
+@Composable
 private fun PingResultSection(job: PingJob) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("PING результат", style = MaterialTheme.typography.titleMedium)
@@ -472,6 +494,60 @@ private fun PingResultSection(job: PingJob) {
             result.ping?.let { ping ->
                 PingLatencySummary(ping)
             }
+        }
+    }
+}
+
+@Composable
+private fun TracerouteResultSection(result: TracerouteResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Traceroute результат", style = MaterialTheme.typography.titleMedium)
+
+        LabeledRow("ID", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        result.message?.takeIf { it.isNotBlank() }?.let {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Сообщение", style = MaterialTheme.typography.bodyMedium)
+                Text(it, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Text("Хопы", style = MaterialTheme.typography.labelLarge)
+        if (result.hops.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 1.dp,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    result.hops.forEach { hop ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val hopLabel = hop.hop?.let { "$it" } ?: "—"
+                            Text("Хоп $hopLabel", style = MaterialTheme.typography.bodyMedium)
+                            Column(horizontalAlignment = Alignment.End) {
+                                hop.ip?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                }
+                                hop.time?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (hop.ip.isNullOrBlank() && hop.time.isNullOrBlank()) {
+                                    Text("нет данных", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Text("Хопы не получены", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -540,6 +616,30 @@ private data class MetricGroup(val title: String?, val metrics: List<MetricItem>
 
 private data class MetricItem(val label: String, val value: String)
 
+private data class HttpCheckResult(
+    val location: String?,
+    val country: String?,
+    val timeMillis: Long?,
+    val statusCode: Int?,
+    val ip: String?,
+    val result: String?,
+    val headers: String?
+)
+
+private data class TracerouteResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val message: String?,
+    val hops: List<TracerouteHop>
+)
+
+private data class TracerouteHop(
+    val hop: Int?,
+    val ip: String?,
+    val time: String?
+)
+
 private data class PingJob(
     val id: String?,
     val target: String?,
@@ -595,6 +695,90 @@ private fun parseMetricGroups(body: String?): List<MetricGroup> {
 
         groups
     }.getOrElse { emptyList() }
+}
+
+private fun parseHttpResult(body: String?): HttpCheckResult? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+
+        val httpObject = json.optJSONObject("http")
+            ?: json.optJSONObject("result")?.optJSONObject("http")
+            ?: json.optJSONObject("results")?.optJSONObject("http")
+            ?: json.optJSONArray("result")?.let { results ->
+                (0 until results.length()).firstNotNullOfOrNull { index ->
+                    results.optJSONObject(index)?.optJSONObject("http")
+                }
+            }
+            ?: json.optJSONArray("results")?.let { results ->
+                (0 until results.length()).firstNotNullOfOrNull { index ->
+                    results.optJSONObject(index)?.optJSONObject("http")
+                }
+            }
+
+        httpObject ?: return@runCatching null
+
+        HttpCheckResult(
+            location = httpObject.optString("location", null),
+            country = httpObject.optString("country", null),
+            timeMillis = httpObject.optLong("timeMillis", 0L).takeIf { it > 0 },
+            statusCode = httpObject.optInt("statusCode", 0).takeIf { it > 0 },
+            ip = httpObject.optString("ip", null),
+            result = httpObject.optString("result", null),
+            headers = httpObject.optJSONObject("headers")?.toString(2)
+                ?: httpObject.optString("headers", null)
+        )
+    }.getOrNull()
+}
+
+private fun parseTracerouteResult(body: String?): TracerouteResult? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+        val resultNode = json.opt("result")
+            ?: json.opt("results")
+            ?: return@runCatching null
+
+        val resultsArray = when (resultNode) {
+            is JSONArray -> resultNode
+            is JSONObject -> JSONArray().apply { put(resultNode) }
+            else -> return@runCatching null
+        }
+
+        val targetResult = (0 until resultsArray.length()).firstNotNullOfOrNull { index ->
+            val resultObject = resultsArray.optJSONObject(index) ?: return@firstNotNullOfOrNull null
+            val tracerouteObject = resultObject.optJSONObject("traceroute") ?: return@firstNotNullOfOrNull null
+            resultObject to tracerouteObject
+        } ?: return@runCatching null
+
+        val resultObject = targetResult.first
+        val tracerouteObject = targetResult.second
+
+        val hops = tracerouteObject.optJSONArray("hops")?.let { hopsArray ->
+            buildList {
+                for (index in 0 until hopsArray.length()) {
+                    val hopObject = hopsArray.optJSONObject(index) ?: continue
+                    add(
+                        TracerouteHop(
+                            hop = hopObject.optInt("hop", -1).takeIf { it >= 0 },
+                            ip = hopObject.optString("ip", null),
+                            time = hopObject.optString("time", null)
+                        )
+                    )
+                }
+            }
+        } ?: emptyList()
+
+        TracerouteResult(
+            id = resultObject.optString("id", null),
+            status = resultObject.optString("status", null),
+            durationMillis = resultObject.optLong("durationMillis", 0L).takeIf { it > 0 },
+            message = resultObject.optString("message", null),
+            hops = hops
+        )
+    }.getOrNull()
 }
 
 private fun parsePingJob(body: String?): PingJob? {
