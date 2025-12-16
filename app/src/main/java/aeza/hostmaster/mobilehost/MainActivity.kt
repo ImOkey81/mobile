@@ -408,10 +408,12 @@ private fun CheckResultSummary(result: ServerCheckResult) {
     Text("Код ответа: ${result.statusCode ?: "нет"}")
     result.jobId?.let { Text("ID задачи: $it") }
     val pingJob = parsePingJob(result.body)
+    val tracerouteResult = parseTracerouteResult(result.body)
     val httpResult = parseHttpResult(result.body)
     val metricGroups = parseMetricGroups(result.body)
     when {
         pingJob != null -> PingResultSection(pingJob)
+        tracerouteResult != null -> TracerouteResultSection(tracerouteResult)
         httpResult != null -> HttpResultSection(httpResult)
         metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
         else -> {
@@ -638,6 +640,20 @@ private data class PingMetrics(
     val maxRtt: Double?
 )
 
+private data class TracerouteResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val message: String?,
+    val hops: List<TracerouteHop>
+)
+
+private data class TracerouteHop(
+    val hop: Int?,
+    val ip: String?,
+    val time: String?
+)
+
 private fun parseMetricGroups(body: String?): List<MetricGroup> {
     if (body.isNullOrBlank()) return emptyList()
 
@@ -650,14 +666,14 @@ private fun parseMetricGroups(body: String?): List<MetricGroup> {
                 val result = results.optJSONObject(index) ?: continue
                 val metrics = result.optJSONObject("metrics")?.toMetricItems().orEmpty()
                 if (metrics.isNotEmpty()) {
-                    val title = result.optString("checkType", null)?.takeIf { it.isNotBlank() }
+                    val title = result.optString("checkType").takeIf { it.isNotBlank() }
                     groups += MetricGroup(title, metrics)
                 }
             }
         }
 
         json.optJSONObject("metrics")?.toMetricItems()?.takeIf { it.isNotEmpty() }?.let { metrics ->
-            val title = json.optString("checkType", null).takeIf { it.isNotBlank() }
+            val title = json.optString("checkType").takeIf { it.isNotBlank() }
             groups += MetricGroup(title, metrics)
         }
 
@@ -682,14 +698,14 @@ private fun parseHttpResult(body: String?): HttpCheckResult? {
         httpObject ?: return@runCatching null
 
         HttpCheckResult(
-            location = httpObject.optString("location", null),
-            country = httpObject.optString("country", null),
+            location = httpObject.optString("location").takeIf { it.isNotBlank() },
+            country = httpObject.optString("country").takeIf { it.isNotBlank() },
             timeMillis = httpObject.optLong("timeMillis", 0L).takeIf { it > 0 },
             statusCode = httpObject.optInt("statusCode", 0).takeIf { it > 0 },
-            ip = httpObject.optString("ip", null),
-            result = httpObject.optString("result", null),
+            ip = httpObject.optString("ip").takeIf { it.isNotBlank() },
+            result = httpObject.optString("result").takeIf { it.isNotBlank() },
             headers = httpObject.optJSONObject("headers")?.toString(2)
-                ?: httpObject.optString("headers", null)
+                ?: httpObject.optString("headers").takeIf { it.isNotBlank() }
         )
     }.getOrNull()
 }
@@ -708,14 +724,14 @@ private fun parsePingJob(body: String?): PingJob? {
 
                 add(
                     PingResult(
-                        id = resultObject.optString("id", null),
-                        type = resultObject.optString("type", null),
-                        status = resultObject.optString("status", null),
+                        id = resultObject.optString("id").takeIf { it.isNotBlank() },
+                        type = resultObject.optString("type").takeIf { it.isNotBlank() },
+                        status = resultObject.optString("status").takeIf { it.isNotBlank() },
                         durationMillis = resultObject.optLong("durationMillis", 0L).takeIf { it > 0 },
                         ping = PingMetrics(
-                            location = pingObject.optString("location", null),
-                            country = pingObject.optString("country", null),
-                            ip = pingObject.optString("ip", null),
+                            location = pingObject.optString("location").takeIf { it.isNotBlank() },
+                            country = pingObject.optString("country").takeIf { it.isNotBlank() },
+                            ip = pingObject.optString("ip").takeIf { it.isNotBlank() },
                             transmitted = pingObject.optInt("transmitted", -1).takeIf { it >= 0 },
                             received = pingObject.optInt("received", -1).takeIf { it >= 0 },
                             packetLoss = pingObject.optDouble("packetLoss", Double.NaN).takeUnless { it.isNaN() },
@@ -731,13 +747,79 @@ private fun parsePingJob(body: String?): PingJob? {
         if (pingResults.isEmpty()) return@runCatching null
 
         PingJob(
-            id = json.optString("id", null),
-            target = json.optString("target", null),
-            status = json.optString("status", null),
-            executedAt = json.optString("executedAt", null),
-            finishedAt = json.optString("finishedAt", null),
+            id = json.optString("id").takeIf { it.isNotBlank() },
+            target = json.optString("target").takeIf { it.isNotBlank() },
+            status = json.optString("status").takeIf { it.isNotBlank() },
+            executedAt = json.optString("executedAt").takeIf { it.isNotBlank() },
+            finishedAt = json.optString("finishedAt").takeIf { it.isNotBlank() },
             totalDurationMillis = json.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
             results = pingResults
+        )
+    }.getOrNull()
+}
+
+private fun parseTracerouteResult(body: String?): TracerouteResult? {
+    if (body.isNullOrBlank()) return null
+
+    return runCatching {
+        val json = JSONObject(body)
+
+        val (containerObject, tracerouteObject) = when {
+            json.optJSONObject("traceroute") != null -> json to json.getJSONObject("traceroute")
+            json.optJSONObject("result")?.optJSONObject("traceroute") != null -> {
+                val resultObject = json.getJSONObject("result")
+                resultObject to resultObject.getJSONObject("traceroute")
+            }
+            else -> {
+                val resultArray = json.optJSONArray("result") ?: return@runCatching null
+                var matchedContainer: JSONObject? = null
+                var matchedTraceroute: JSONObject? = null
+
+                for (index in 0 until resultArray.length()) {
+                    val item = resultArray.optJSONObject(index) ?: continue
+                    val traceroute = item.optJSONObject("traceroute") ?: continue
+                    matchedContainer = item
+                    matchedTraceroute = traceroute
+                    break
+                }
+
+                val traceroute = matchedTraceroute ?: return@runCatching null
+                val container = matchedContainer ?: json
+                container to traceroute
+            }
+        }
+
+        val hops = tracerouteObject.optJSONArray("hops")?.let { hopsArray ->
+            buildList {
+                for (index in 0 until hopsArray.length()) {
+                    val hopObject = hopsArray.optJSONObject(index) ?: continue
+                    val hopIp = hopObject.optString("ip").takeIf { it.isNotBlank() }
+                    val hopLatency = hopObject.optString("time").takeIf { it.isNotBlank() }
+                        ?: hopObject.optString("latency").takeIf { it.isNotBlank() }
+                        ?: hopObject.optDouble("latency", Double.NaN)
+                            .takeUnless { it.isNaN() }?.toString()
+
+                    add(
+                        TracerouteHop(
+                            hop = hopObject.optInt("hop", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE },
+                            ip = hopIp,
+                            time = hopLatency
+                        )
+                    )
+                }
+            }
+        }.orEmpty()
+
+        TracerouteResult(
+            id = containerObject.optString("id").takeIf { it.isNotBlank() }
+                ?: json.optString("id").takeIf { it.isNotBlank() },
+            status = containerObject.optString("status").takeIf { it.isNotBlank() }
+                ?: json.optString("status").takeIf { it.isNotBlank() },
+            durationMillis = containerObject.optLong("durationMillis", 0L).takeIf { it > 0 }
+                ?: containerObject.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
+            message = tracerouteObject.optString("message").takeIf { it.isNotBlank() }
+                ?: containerObject.optString("message").takeIf { it.isNotBlank() },
+            hops = hops
         )
     }.getOrNull()
 }

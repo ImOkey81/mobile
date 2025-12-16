@@ -114,8 +114,8 @@ private fun parseJobId(body: String?): String? {
     if (body.isNullOrBlank()) return null
     return runCatching {
         val json = JSONObject(body)
-        json.optString("id", null)?.takeIf { uuid ->
-            runCatching { UUID.fromString(uuid) }.isSuccess
+        json.optString("id").takeIf { uuid ->
+            uuid.isNotBlank() && runCatching { UUID.fromString(uuid) }.isSuccess
         }
     }.getOrNull()
 }
