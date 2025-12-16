@@ -793,9 +793,9 @@ private fun parseTracerouteResult(body: String?): TracerouteResult? {
             buildList {
                 for (index in 0 until hopsArray.length()) {
                     val hopObject = hopsArray.optJSONObject(index) ?: continue
-                    val hopIp = hopObject.optString("ip").takeIf { it.isNotBlank() }
-                    val hopLatency = hopObject.optString("time").takeIf { it.isNotBlank() }
-                        ?: hopObject.optString("latency").takeIf { it.isNotBlank() }
+                    val hopIp = hopObject.optString("ip", null).takeUnless { it.isNullOrBlank() }
+                    val hopLatency = hopObject.optString("time", null).takeUnless { it.isNullOrBlank() }
+                        ?: hopObject.optString("latency", null).takeUnless { it.isNullOrBlank() }
                         ?: hopObject.optDouble("latency", Double.NaN)
                             .takeUnless { it.isNaN() }?.toString()
 
@@ -811,14 +811,14 @@ private fun parseTracerouteResult(body: String?): TracerouteResult? {
         }.orEmpty()
 
         TracerouteResult(
-            id = containerObject.optString("id").takeIf { it.isNotBlank() }
-                ?: json.optString("id").takeIf { it.isNotBlank() },
-            status = containerObject.optString("status").takeIf { it.isNotBlank() }
-                ?: json.optString("status").takeIf { it.isNotBlank() },
+            id = containerObject.optString("id", null).takeUnless { it.isNullOrBlank() }
+                ?: json.optString("id", null).takeIf { it.isNotBlank() },
+            status = containerObject.optString("status", null).takeUnless { it.isNullOrBlank() }
+                ?: json.optString("status", null).takeIf { it.isNotBlank() },
             durationMillis = containerObject.optLong("durationMillis", 0L).takeIf { it > 0 }
                 ?: containerObject.optLong("totalDurationMillis", 0L).takeIf { it > 0 },
-            message = tracerouteObject.optString("message").takeIf { it.isNotBlank() }
-                ?: containerObject.optString("message").takeIf { it.isNotBlank() },
+            message = tracerouteObject.optString("message", null).takeUnless { it.isNullOrBlank() }
+                ?: containerObject.optString("message", null).takeUnless { it.isNullOrBlank() },
             hops = hops
         )
     }.getOrNull()
