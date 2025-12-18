@@ -38,10 +38,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import aeza.hostmaster.mobilehost.domain.model.DnsLookupResult
+import aeza.hostmaster.mobilehost.domain.model.HttpCheckResult
 import aeza.hostmaster.mobilehost.domain.model.MetricGroup
 import aeza.hostmaster.mobilehost.domain.model.MetricItem
 import aeza.hostmaster.mobilehost.domain.model.PingJob
 import aeza.hostmaster.mobilehost.domain.model.PingMetrics
+import aeza.hostmaster.mobilehost.domain.model.TcpCheckResult
+import aeza.hostmaster.mobilehost.domain.model.TracerouteCheckResult
 import aeza.hostmaster.mobilehost.domain.model.ServerCheckResult
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,9 +234,17 @@ private fun ResultCard(
                 res.jobId?.let { Text("ID задачи: $it") }
 
                 val pingJob = parsePingJob(res.body)
+                val httpResult = parseHttpResult(res.body)
+                val tcpResult = parseTcpResult(res.body)
+                val tracerouteResult = parseTracerouteResult(res.body)
+                val dnsResult = parseDnsLookupResult(res.body)
                 val metricGroups = parseMetricGroups(res.body)
                 when {
                     pingJob != null -> PingResultSection(pingJob)
+                    httpResult != null -> HttpResultSection(httpResult)
+                    tcpResult != null -> TcpResultSection(tcpResult)
+                    tracerouteResult != null -> TracerouteResultSection(tracerouteResult)
+                    dnsResult != null -> DnsResultSection(dnsResult)
                     metricGroups.isNotEmpty() -> MetricsSection(metricGroups)
                     else -> {
                         res.body?.takeIf { it.isNotBlank() }?.let {
@@ -276,6 +288,71 @@ private fun MetricsSection(metricGroups: List<MetricGroup>) {
 }
 
 @Composable
+private fun HttpResultSection(result: HttpCheckResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("HTTP/HTTPS результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("ID результата", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        result.timeMillis?.let { LabeledRow("Время ответа, мс", it.toString()) }
+        result.statusCode?.let { LabeledRow("HTTP код", it.toString()) }
+        LabeledRow("IP", result.ip)
+        LabeledRow("Локация", result.location)
+        LabeledRow("Страна", result.country)
+        LabeledRow("Результат", result.result)
+    }
+}
+
+@Composable
+private fun TcpResultSection(result: TcpCheckResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("TCP результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("ID результата", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        result.connectTimeMillis?.let { LabeledRow("Время подключения, мс", it.toString()) }
+        LabeledRow("Состояние подключения", result.connectionStatus)
+        LabeledRow("IP", result.ip)
+        LabeledRow("Локация", result.location)
+        LabeledRow("Страна", result.country)
+    }
+}
+
+@Composable
+private fun TracerouteResultSection(result: TracerouteCheckResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Traceroute результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("ID результата", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        result.message?.let { LabeledRow("Сообщение", it) }
+
+        if (result.hops.isNotEmpty()) {
+            Text("Ходы", style = MaterialTheme.typography.labelLarge)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                result.hops.forEach { hop -> HopRow(hop) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DnsResultSection(result: DnsLookupResult) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("DNS результат", style = MaterialTheme.typography.titleMedium)
+        LabeledRow("ID результата", result.id)
+        LabeledRow("Статус", result.status)
+        result.durationMillis?.let { LabeledRow("Длительность, мс", it.toString()) }
+        LabeledRow("Локация", result.location)
+        LabeledRow("Страна", result.country)
+        LabeledRow("TTL", result.ttl)
+        if (result.records.isNotEmpty()) {
+            LabeledRow("Записи", result.records.joinToString())
+        }
+    }
+}
+
+@Composable
 private fun MetricRow(metric: MetricItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -283,6 +360,24 @@ private fun MetricRow(metric: MetricItem) {
     ) {
         Text(metric.label, style = MaterialTheme.typography.bodyMedium)
         Text(metric.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun HopRow(hop: TracerouteHop) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        val hopLabel = hop.hop?.let { "Хоп $it" } ?: "Хоп"
+        val hopIp = hop.ip ?: "нет данных"
+        val hopTime = hop.time ?: "нет времени"
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(hopLabel, style = MaterialTheme.typography.bodyMedium)
+            Text(hopIp, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(hopTime, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 

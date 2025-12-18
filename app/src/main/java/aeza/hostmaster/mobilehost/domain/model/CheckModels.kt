@@ -53,3 +53,46 @@ data class PingMetrics(
     val avgRtt: Double?,
     val maxRtt: Double?
 )
+
+data class HttpCheckResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val location: String?,
+    val country: String?,
+    val timeMillis: Long?,
+    val statusCode: Int?,
+    val ip: String?,
+    val result: String?
+)
+
+data class TcpCheckResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val location: String?,
+    val country: String?,
+    val connectTimeMillis: Long?,
+    val connectionStatus: String?,
+    val ip: String?
+)
+
+data class TracerouteHop(val hop: Int?, val ip: String?, val time: String?)
+
+data class TracerouteCheckResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val message: String?,
+    val hops: List<TracerouteHop>
+)
+
+data class DnsLookupResult(
+    val id: String?,
+    val status: String?,
+    val durationMillis: Long?,
+    val location: String?,
+    val country: String?,
+    val records: List<String>,
+    val ttl: String?
+)
