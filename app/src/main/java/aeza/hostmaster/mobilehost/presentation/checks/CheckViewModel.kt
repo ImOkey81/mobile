@@ -17,7 +17,6 @@ data class CheckUiState(
     val httpTarget: String = "https://example.com",
     val pingTarget: String = "1.1.1.1",
     val tcpHost: String = "scanme.nmap.org",
-    val tcpPort: String = "80",
     val traceTarget: String = "google.com",
     val dnsTarget: String = "example.com",
     val loading: Boolean = false,
@@ -55,7 +54,6 @@ class CheckViewModel(
     fun updateHttpTarget(value: String) = _uiState.update { it.copy(httpTarget = value) }
     fun updatePingTarget(value: String) = _uiState.update { it.copy(pingTarget = value) }
     fun updateTcpHost(value: String) = _uiState.update { it.copy(tcpHost = value) }
-    fun updateTcpPort(value: String) = _uiState.update { it.copy(tcpPort = value) }
     fun updateTraceTarget(value: String) = _uiState.update { it.copy(traceTarget = value) }
     fun updateDnsTarget(value: String) = _uiState.update { it.copy(dnsTarget = value) }
 
@@ -89,15 +87,13 @@ class CheckViewModel(
             CheckTab.PING -> CheckRequest(type = CheckTab.PING.type, target = state.pingTarget)
             CheckTab.TRACE -> CheckRequest(type = CheckTab.TRACE.type, target = state.traceTarget)
             CheckTab.DNS -> CheckRequest(type = CheckTab.DNS.type, target = state.dnsTarget)
-            CheckTab.TCP -> {
-                val port = state.tcpPort.toIntOrNull()
-                if (port == null || port <= 0) {
-                    _uiState.update { it.copy(errorMessage = "Введите корректный порт") }
+            CheckTab.TCP ->
+                if (state.tcpHost.isBlank()) {
+                    _uiState.update { it.copy(errorMessage = "Введите корректный хост") }
                     null
                 } else {
-                    CheckRequest(type = CheckTab.TCP.type, target = state.tcpHost, port = port)
+                    CheckRequest(type = CheckTab.TCP.type, target = state.tcpHost.trim())
                 }
-            }
         }
     }
 }
