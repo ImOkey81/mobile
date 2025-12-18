@@ -56,7 +56,6 @@ fun ChecksScreen(
     onHttpTargetChange: (String) -> Unit,
     onPingTargetChange: (String) -> Unit,
     onTcpHostChange: (String) -> Unit,
-    onTcpPortChange: (String) -> Unit,
     onTraceTargetChange: (String) -> Unit,
     onDnsTargetChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -110,7 +109,6 @@ fun ChecksScreen(
                 onHttpTargetChange = onHttpTargetChange,
                 onPingTargetChange = onPingTargetChange,
                 onTcpHostChange = onTcpHostChange,
-                onTcpPortChange = onTcpPortChange,
                 onTraceTargetChange = onTraceTargetChange,
                 onDnsTargetChange = onDnsTargetChange,
                 onSubmit = onSubmit,
@@ -126,7 +124,6 @@ private fun CheckContent(
     onHttpTargetChange: (String) -> Unit,
     onPingTargetChange: (String) -> Unit,
     onTcpHostChange: (String) -> Unit,
-    onTcpPortChange: (String) -> Unit,
     onTraceTargetChange: (String) -> Unit,
     onDnsTargetChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -167,13 +164,6 @@ private fun CheckContent(
                     value = state.tcpHost,
                     onValueChange = onTcpHostChange,
                     label = { Text("Хост") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = state.tcpPort,
-                    onValueChange = onTcpPortChange,
-                    label = { Text("Порт") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

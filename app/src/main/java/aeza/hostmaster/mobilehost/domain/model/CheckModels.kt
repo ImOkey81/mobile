@@ -1,11 +1,10 @@
 package aeza.hostmaster.mobilehost.domain.model
 
-enum class CheckType { HTTP, PING, TCP_PORT, TRACEROUTE, DNS_LOOKUP }
+enum class CheckType { HTTP, PING, TCP, TRACEROUTE, DNS_LOOKUP }
 
 data class CheckRequest(
     val type: CheckType,
-    val target: String,
-    val port: Int? = null
+    val target: String
 )
 
 data class Credentials(
