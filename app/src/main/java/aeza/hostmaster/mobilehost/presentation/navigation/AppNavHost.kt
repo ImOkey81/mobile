@@ -49,7 +49,6 @@ fun AppNavHost(
                 onHttpTargetChange = checkViewModel::updateHttpTarget,
                 onPingTargetChange = checkViewModel::updatePingTarget,
                 onTcpHostChange = checkViewModel::updateTcpHost,
-                onTcpPortChange = checkViewModel::updateTcpPort,
                 onTraceTargetChange = checkViewModel::updateTraceTarget,
                 onDnsTargetChange = checkViewModel::updateDnsTarget,
                 onSubmit = checkViewModel::submitCurrentCheck,

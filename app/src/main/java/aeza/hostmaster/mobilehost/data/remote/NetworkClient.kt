@@ -70,8 +70,8 @@ class NetworkClient {
     private fun buildPayload(request: CheckRequest): Map<String, Any?> {
         val basePayload = mapOf("checkTypes" to listOf(request.type.name))
         val extra = when (request.type) {
-            CheckType.HTTP, CheckType.PING, CheckType.TRACEROUTE, CheckType.DNS_LOOKUP -> mapOf("target" to request.target)
-            CheckType.TCP_PORT -> mapOf("target" to request.target, "port" to request.port)
+            CheckType.HTTP, CheckType.PING, CheckType.TRACEROUTE, CheckType.DNS_LOOKUP, CheckType.TCP ->
+                mapOf("target" to request.target)
         }
         return basePayload + extra
     }
